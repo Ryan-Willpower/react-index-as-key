@@ -19,12 +19,6 @@ function App() {
     setInput("");
   }
 
-  function remove(i: number) {
-    fruits.splice(i, 1);
-
-    setFruit([...fruits]);
-  }
-
   function sortByAlphabet() {
     setFruit([...fruits].sort());
   }
