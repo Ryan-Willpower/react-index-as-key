@@ -1,44 +1,200 @@
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+# What is this?
 
-## Available Scripts
+Everyone try to say what would happen if you use indexes as a key. But no one explain why.
 
-In the project directory, you can run:
+# Array performance fundamental
 
-### `yarn start`
+When you add data to an array. If you push some data into the last of the array, only thing that it do is add more id.
 
-Runs the app in the development mode.<br />
-Open [http://localhost:3000](http://localhost:3000) to view it in the browser.
+```js
+[0, 1, 2][
+  // item : [0, 1, 2]
+  // id   : [0, 1, 2]
 
-The page will reload if you make edits.<br />
-You will also see any lint errors in the console.
+  // push something at the last
+  (0, 1, 2, 3)
+];
+// item : [0, 1, 2, 3] <-- great! only add 3 to the end
+// id   : [0, 1, 2, 3]
+```
 
-### `yarn test`
+But when you add something at the start of the array, the id is break. The array would relocate the ids. And, you know, you lost the performance for relocate the ids.
 
-Launches the test runner in the interactive watch mode.<br />
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+```js
+[0, 1, 2][
+  // item : [0, 1, 2]
+  // id   : [0, 1, 2]
 
-### `yarn build`
+  (3, 0, 1, 2)
+];
+// item : [3, 0, 1, 2]
+// id   : [0, 1, 2, 3] <-- BOOM! `every` item must relocate its id
+```
 
-Builds the app for production to the `build` folder.<br />
-It correctly bundles React in production mode and optimizes the build for the best performance.
+This happen with insert too!
 
-The build is minified and the filenames include the hashes.<br />
-Your app is ready to be deployed!
+```js
+[0, 1, 2][
+  // item : [0, 1, 2]
+  // id   : [0, 1, 2]
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+  (0, 1, 3, 2)
+];
+// item : [0, 1, 3, 2]
+// id   : [0, 1, 2, 3] <-- Now 3 and 2 have to relocate its id.
 
-### `yarn eject`
+// Imagine when you insert the data in the middle of an array which contains at least 100, 1k, or even 10k items... Your app would scream so loud. Poor app :(
+```
 
-**Note: this is a one-way operation. Once you `eject`, you can’t go back!**
+# Updating the app
 
-If you aren’t satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+When React rerender the app. It use a diff algolithm to decide what should it update.
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you’re on your own.
+But on the list of data. React iterated the value.
 
-You don’t have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn’t feel obligated to use this feature. However we understand that this tool wouldn’t be useful if you couldn’t customize it when you are ready for it.
+```jsx
+// Before
 
-## Learn More
+<ul>
+  <li>Orange</li>
+  <li>Kiwi</li>
+</ul>
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+// after
+<ul>
+  <li>Orange</li>
+  <li>Kiwi</li>
+  <li>Banana</li>
+</ul>
+```
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+As I mention in the last chapter, insert into the end does nothing with the app. React will iterate over the list and diff them. It will match the `<li>Orange</li>` and `<li>Kiwi</li>` and insert only `<li>Banana</li>`.
+
+Worst thing happened when you insert the `<li>Banana</li>` at the top of `<ul>`. React will rerender the whole list instead of knowing that `<li>Orange</li>` and `<li>Kiwi</li>` haven't been changed.
+
+# Key save the day!
+
+React provide `key` for easily access the data. Just like the object.
+
+```jsx
+// Before
+
+<ul>
+  <li key="orange">Orange</li>
+  <li key="kiwi">Kiwi</li>
+</ul>
+
+// after
+<ul>
+  <li key="banana">Banana</li>
+  <li key="orange">Orange</li>
+  <li key="kiwi">Kiwi</li>
+</ul>
+```
+
+You can imagine situation as follow
+
+```js
+const before = {
+  orange: "Orange",
+  kiwi: "Kiwi",
+};
+
+const after = {
+  banana: "Banana",
+  orange: "Orange",
+  kiwi: "Kiwi",
+};
+```
+
+You look at the object and already know that before.orange and after.orange is the same.
+This kinda like React `key`. The app using the `key` to diff the data. If element's value at the key is changed, then the app will update the list.
+
+# Using index as the key
+
+Here comes the fun part. Why using index as the key should be avoid?
+Everyone tell us that using index as the key would break the app, and show their app example. But how?
+
+Suppose that you implement the checkbox, for let user select what they want.
+
+```jsx
+<ul>
+  <li key={0}>
+    <input type="checkbox" />
+    Banana
+  </li>
+
+  <li key={1}>
+    <input type="checkbox" />
+    Orange
+  </li>
+
+  <li key={2}>
+    <input type="checkbox" />
+    Kiwi
+  </li>
+</ul>
+```
+
+And then user check the `Orange` and the `Kiwi`. After that, user then added more item at the start of the array.
+
+```jsx
+<ul>
+  <li key={0}>
+    <input type="checkbox" />
+    Watermelon
+  </li>
+
+  <li key={1}>
+    <input type="checkbox" />
+    Banana
+  </li>
+
+  <li key={2}>
+    <input type="checkbox" />
+    Orange
+  </li>
+
+  <li key={3}>
+    <input type="checkbox" />
+    Kiwi
+  </li>
+</ul>
+```
+
+Question! Which fruit is selected right now?
+(Hint: Before any changed, user select the `Orange` and `Kiwi`.)
+...
+You say it's still orange and kiwi?
+Wrong! The answer is `Banana` and `Orange`
+
+![wrong](./wrong.gif)
+
+That's Because what user selected is not on `Orange` and `Kiwi`, but they selected on index `1` and `2`, so when the app is updated, the app doesn't work as you expected.
+
+Although, using id that **unique** and **static** is the best practice to set the key.
+
+```jsx
+<ul>
+  <li key="banana_18739872">
+    <input type="checkbox" />
+    Banana
+  </li>
+
+  <li key="orange_1738948">
+    <input type="checkbox" />
+    Orange
+  </li>
+
+  <li key="kiwi_2378758">
+    <input type="checkbox" />
+    Kiwi
+  </li>
+</ul>
+```
+
+As the result, everything is now work as we expect.
+
+![right](./right.gif)
+
+But at the last resort. You still can use the index as the key when there is no id for your item and your list of item is static, no reordered or moved.
